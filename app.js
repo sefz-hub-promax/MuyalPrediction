@@ -31,7 +31,7 @@ function call(fn){
   return once().catch(function(e){if(!isTransient(e))throw e;return wait(1200).then(once);})
     .catch(function(e){e=e||{};e.transient=isTransient(e);throw e;});
 }
-function errText(e){return e&&e.transient?'אין חיבור לשרת — השינויים יישמרו כשהחיבור יחזור.':'השמירה נכשלה'+(e&&e.code?' ('+e.code+')':'')+'. הנתונים רועננו מהשרת.';}
+function errText(e){if(e&&(e.hint==='locked'||/locked/.test(e.message||'')||e.code==='42501'))return 'הניחושים כבר נעולים — השינוי לא נשמר.';return e&&e.transient?'אין חיבור לשרת — השינויים יישמרו כשהחיבור יחזור.':'השמירה נכשלה'+(e&&e.code?' ('+e.code+')':'')+'. הנתונים רועננו מהשרת.';}
 function oneOff(fn){
   busyN++;setStatus();
   return call(fn).then(function(r){busyN--;lastErr=null;setStatus();return r;},function(e){busyN--;lastErr=errText(e);setStatus();throw e;});
@@ -99,7 +99,7 @@ function rebuild(){
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible()].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible(),lockAt,locked()].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -129,7 +129,17 @@ function patch(){
 function remember(){try{localStorage.setItem(LS+'-view',JSON.stringify({view:view,g:focusG}));}catch(e){}}
 function setView(v){view=v;remember();render();}
 
-var showRes=false;
+var showRes=false,lockAt=null,lockTimer=null;
+function locked(){return lockAt!=null&&Date.now()>=lockAt;}
+function lockTime(){return new Date(lockAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jerusalem'});}
+function lockLine(){if(lockAt==null)return null;return el('p',{class:'lockline'+(locked()?' on':'')},[document.createTextNode(locked()?'🔒 הניחושים נעולים מ־'+lockTime()+' · אפשר להזין רק תוצאות':'⏰ הניחושים ננעלים היום ב־'+lockTime())]);}
+function loadLock(){
+  call(function(){return sb.rpc('lock_at')}).then(function(r){
+    if(!r.data)return;lockAt=new Date(r.data).getTime();clearTimeout(lockTimer);
+    if(!locked())lockTimer=setTimeout(function(){if(mode==='live')fullRender();},lockAt-Date.now()+300);
+    if(mode==='live')fullRender();
+  },function(){});
+}
 function resVisible(){return showRes||S.parties.some(function(p){return isNum(res(p.id))});}
 function fitTickers(){
   root.querySelectorAll('.ticker').forEach(function(t){
@@ -148,13 +158,14 @@ function gridCols(){
 
 function render(){
   fixFocus();lastSig=sig();
+  var L=locked()?'':null;
   root.setAttribute('data-view',view);
   root.innerHTML='';
   var ring=el('div',{class:'ring','aria-hidden':'true'});
   var head=el('header',null,[
     el('div',{class:'titles'},[
       el('h1',{text:'ניחוש בחירות'}),
-      el('p',{class:'sub',text:'כנסת ה־26 · כל אחד ממלא את הטור שלו'})
+      el('p',{class:'sub',text:'כנסת ה־26 · כל אחד ממלא את הטור שלו'}),lockLine()
     ]),
     el('span',{id:'status',role:'status','aria-live':'polite',onclick:function(){if(failedCount())retryFailed();}})
   ]);
@@ -186,7 +197,7 @@ function render(){
   var hr=el('div',{class:'grid head'},[el('div',{class:'cell party'},[el('span',{class:'lbl',text:'מפלגה'})]),el('div',{class:'cell prev'},[el('span',{class:'lbl pencil-lbl',text:'2022'})])]);
   S.guessers.forEach(function(gu){
     if(!showG(gu.id))return;
-    var inp=el('input',{class:'gname',id:'gn-'+gu.id,value:gu.name,'aria-label':'שם מנחש',oninput:function(){edit('gf|'+gu.id,function(){return OP.field('guessers',gu.id,'name')},inp.value);var ch=document.getElementById('chip-'+gu.id);if(ch)ch.textContent=inp.value||'ללא שם';refresh();}});
+    var inp=el('input',{class:'gname',id:'gn-'+gu.id,value:gu.name,'aria-label':'שם מנחש',disabled:L,oninput:function(){edit('gf|'+gu.id,function(){return OP.field('guessers',gu.id,'name')},inp.value);var ch=document.getElementById('chip-'+gu.id);if(ch)ch.textContent=inp.value||'ללא שם';refresh();}});
     hr.appendChild(el('div',{class:'cell gh'},[inp]));
   });
   hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl',text:'ממוצע'})]));
@@ -196,16 +207,16 @@ function render(){
   S.parties.forEach(function(p,ri){
     var dis=p.running?null:'';
     var tk=el('span',{class:'tk-in',text:p.name});
-    var pin=el('input',{class:'pname',id:'pn-'+p.id,value:p.name,'aria-label':'שם מפלגה',onblur:fitTickers,oninput:function(){tk.textContent=pin.value;edit('pf|'+p.id+'|name',function(){return OP.field('parties',p.id,'name')},pin.value);refresh();}});
+    var pin=el('input',{class:'pname',id:'pn-'+p.id,value:p.name,'aria-label':'שם מפלגה',disabled:L,onblur:fitTickers,oninput:function(){tk.textContent=pin.value;edit('pf|'+p.id+'|name',function(){return OP.field('parties',p.id,'name')},pin.value);refresh();}});
     var row=el('div',{class:'grid row'+(ri%2?' alt':'')+(p.running?'':' out')},[
       el('div',{class:'cell party'},[el('div',{class:'pstack'},[el('div',{class:'pname-box'},[el('span',{class:'ticker',id:'pt-'+p.id,'aria-hidden':'true'},[tk]),pin]),p.leader?el('small',{class:'leader ticker'},[el('span',{class:'tk-in',text:p.leader})]):null,p.running?null:el('small',{class:'notrun',text:'לא מתמודדת'})])])
     ]);
-    var pvi=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'pv-'+p.id,'aria-label':'מנדטים ב־2022 '+p.name,placeholder:'–',value:p.prev==null?'':p.prev,oninput:function(){edit('pf|'+p.id+'|prev',function(){return OP.field('parties',p.id,'prev_2022')},num(pvi.value));refresh();}});
+    var pvi=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'pv-'+p.id,'aria-label':'מנדטים ב־2022 '+p.name,placeholder:'–',value:p.prev==null?'':p.prev,disabled:L,oninput:function(){edit('pf|'+p.id+'|prev',function(){return OP.field('parties',p.id,'prev_2022')},num(pvi.value));refresh();}});
     row.appendChild(el('div',{class:'cell prev'},[pvi,p.prevNote?el('small',{class:'pnote ticker'},[el('span',{class:'tk-in',text:p.prevNote})]):null]));
     S.guessers.forEach(function(gu){
       if(!showG(gu.id))return;
       var v=g(p.id,gu.id);
-      var i=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'c-'+p.id+'-'+gu.id,'aria-label':gu.name+' — '+p.name,placeholder:'–',value:v==null?'':v,disabled:dis,oninput:function(){
+      var i=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'c-'+p.id+'-'+gu.id,'aria-label':gu.name+' — '+p.name,placeholder:'–',value:v==null?'':v,disabled:(dis!=null||L!=null)?'':null,oninput:function(){
         edit('g|'+gu.id+'|'+p.id,function(){return OP.guess(gu.id,p.id)},num(i.value));refresh();}});
       row.appendChild(el('div',{class:'cell gc','data-p':p.id,'data-g':gu.id},[el('span',{class:'mark'},[i])]));
     });
@@ -223,8 +234,8 @@ function render(){
   paper.appendChild(el('div',{class:'scroll'},[tbl]));
 
   paper.appendChild(el('div',{class:'addrow'},[
-    el('button',{class:'pen-btn',text:'+ מפלגה',onclick:function(){var id=newId('p');addRow('parties',{id:id,name:'מפלגה חדשה',ord:Date.now(),prev_2022:null,prev_note:''});render();var f=document.getElementById('pn-'+id);if(f){f.focus();f.select();}}}),
-    el('button',{class:'pen-btn',text:'+ מנחש',onclick:function(){var id=newId('g');addRow('guessers',{id:id,name:'מנחש חדש',ord:Date.now(),vals:{}});focusG=id;remember();render();var f=document.getElementById('gn-'+id);if(f){f.focus();f.select();}}}),
+    L!=null?null:el('button',{class:'pen-btn',text:'+ מפלגה',onclick:function(){var id=newId('p');addRow('parties',{id:id,name:'מפלגה חדשה',ord:Date.now(),prev_2022:null,prev_note:''});render();var f=document.getElementById('pn-'+id);if(f){f.focus();f.select();}}}),
+    L!=null?null:el('button',{class:'pen-btn',text:'+ מנחש',onclick:function(){var id=newId('g');addRow('guessers',{id:id,name:'מנחש חדש',ord:Date.now(),vals:{}});focusG=id;remember();render();var f=document.getElementById('gn-'+id);if(f){f.focus();f.select();}}}),
     resVisible()?null:el('button',{class:'pen-btn red-btn',text:'+ תוצאות אמת',onclick:function(){showRes=true;render();var f=root.querySelector('.cell.res input:not(:disabled)');if(f)f.focus();}}),
     el('span',{class:'legend',text:resVisible()?'עיפרון = 2022 · עט אדום = התוצאה בפועל':'עיפרון = 2022 · עמודת התוצאות תופיע כשיתחילו להזין תוצאות'})
   ]));
@@ -334,7 +345,7 @@ function start(){
   var cfg=window.APP_CONFIG||{};
   if(!window.supabase||!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||/YOUR-/.test(cfg.SUPABASE_URL+cfg.SUPABASE_ANON_KEY)){mode='noconfig';render();return;}
   sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-  render();loadAll();
+  render();loadAll();loadLock();
   var ch=sb.channel('election');
   ['parties','guessers','results'].forEach(function(t){ch.on('postgres_changes',{event:'*',schema:'public',table:t},onChange(t));});
   ch.subscribe(function(status){
