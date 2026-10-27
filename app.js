@@ -266,7 +266,7 @@ function refresh(){
     var a=document.getElementById('avg-'+p.id);if(a)a.textContent=vals.length?(vals.reduce(function(s,v){return s+v},0)/vals.length).toFixed(1):'–';
     S.guessers.forEach(function(gu){
       var c=root.querySelector('.cell[data-p="'+p.id+'"][data-g="'+gu.id+'"]');var v=g(p.id,gu.id);
-      if(c){c.classList.toggle('hit',isNum(res(p.id))&&v===res(p.id));warnCell(c,v);}
+      if(c){c.classList.toggle('hit',isNum(res(p.id))&&v===res(p.id));c.classList.toggle('phit',!out(p.id)&&isNum(S.poll[p.id])&&v===S.poll[p.id]);warnCell(c,v);}
       if(below(v))warns++;
     });
     var rc=root.querySelector('.cell[data-r="'+p.id+'"]');warnCell(rc,res(p.id));

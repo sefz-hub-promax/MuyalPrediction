@@ -108,6 +108,8 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
 .cell.res input.num:placeholder-shown{background:repeating-linear-gradient(90deg,var(--red-dash) 0 4px,transparent 4px 7px) center bottom 6px/34px 1.5px no-repeat}
 .cell.res.filled input.num{transform:rotate(-4deg)}
 /* marks */
+/* exact match with the exit poll: yellow circle (drawn outside the red result oval) */
+.cell.phit .mark::before{content:"";position:absolute;inset:-7px -3px;border:2.6px solid #E8B400;pointer-events:none;border-radius:48% 52% 45% 55%/55% 48% 52% 45%;transform:rotate(6deg)}
 .cell.hit .mark::after{content:"";position:absolute;inset:-3px 1px;border:2.2px solid var(--red);pointer-events:none;
   border-radius:52% 48% 55% 45% / 58% 50% 50% 42%;transform:rotate(-9deg)}
 .cell.warn input.num{background:linear-gradient(176deg,transparent 30%,var(--highlighter) 31% 86%,transparent 87%) center/60% 100% no-repeat}
