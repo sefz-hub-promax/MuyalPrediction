@@ -61,6 +61,11 @@ input.num::-webkit-inner-spin-button{opacity:.3}
 .avg{color:var(--muted);font-family:var(--num);font-size:14px}
 .cellwrap{display:flex;align-items:center;gap:2px;justify-content:center}
 .pstack{display:grid;flex:1;min-width:0}
+tr.out td:not(.prev){background-image:repeating-linear-gradient(135deg,transparent 0 6px,var(--line) 6px 7px)}
+tr.out td.party{background-color:var(--sheet)}
+tr.out td input.num,tr.out td.avg{opacity:.4}
+tr.out td.party input{color:var(--muted);text-decoration:line-through}
+small.notrun{color:var(--bad);font-weight:600}
 small.leader{display:block;font-size:12px;line-height:1.2;color:var(--muted);padding:0 5px 2px;overflow-wrap:anywhere}
 .x{background:none;border:0;color:var(--muted);font-size:13px;padding:2px 5px;line-height:1}
 .x:hover{color:var(--bad)}

@@ -7,9 +7,11 @@ create table if not exists public.parties (
   ord        bigint not null default 0,
   prev_2022  int    null check (prev_2022 between 0 and 120),
   prev_note  text   not null default '',
-  leader     text   not null default ''
+  leader     text   not null default '',
+  running    boolean not null default true
 );
 alter table public.parties add column if not exists leader text not null default '';
+alter table public.parties add column if not exists running boolean not null default true;
 
 -- one row per guesser (= one column in the table); vals = {party_id: seats}
 create table if not exists public.guessers (

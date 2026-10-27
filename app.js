@@ -16,8 +16,10 @@ try{var vv=JSON.parse(localStorage.getItem(LS+'-view')||'null');if(vv){view=vv.v
 function el(tag,attrs,kids){var e=document.createElement(tag);if(attrs)for(var k in attrs){if(attrs[k]==null)continue;if(k==='text')e.textContent=attrs[k];else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),attrs[k]);else e.setAttribute(k,attrs[k]);}(kids||[]).forEach(function(c){if(c)e.appendChild(c)});return e;}
 function num(v){return (v===''||v==null||isNaN(v))?null:Math.max(0,Math.min(120,Math.round(+v)));}
 function isNum(v){return typeof v==='number'&&isFinite(v);}
-function g(pid,gid){var gu=S.gmap[gid];var v=gu&&gu.values?gu.values[pid]:null;return isNum(v)?v:null;}
+function g(pid,gid){if(out(pid))return null;var gu=S.gmap[gid];var v=gu&&gu.values?gu.values[pid]:null;return isNum(v)?v:null;}
 function newId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+function out(pid){var p=S.pmap&&S.pmap[pid];return !!p&&!p.running;}
+function res(pid){return out(pid)?null:S.results[pid];}
 function below(v){return isNum(v)&&v>0&&v<THRESH;}
 function wait(ms){return new Promise(function(r){setTimeout(r,ms)});}
 function byId(rows){var o={};(rows||[]).forEach(function(r){if(!gone[r.id])o[r.id]=r});return o;}
@@ -94,14 +96,15 @@ function rebuild(){
   for(var k in Q){var q=Q[k];if(q.has)q.op.apply(st,q.val);else if(q.busy)q.op.apply(st,q.sent);}
   var gs=[],ps=[];
   for(var id in st.guessers){if(gone[id])continue;var d=st.guessers[id];gs.push({id:id,name:d.name||'',order:+d.ord||0,values:d.vals||{}});}
-  for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||'',leader:d2.leader||''});}
+  for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||'',leader:d2.leader||'',running:d2.running!==false});}
   var cmp=function(a,b){return a.order-b.order||(a.id<b.id?-1:1)};
   gs.sort(cmp);ps.sort(cmp);
-  S={guessers:gs,parties:ps,results:st.results||{},gmap:{}};
+  S={guessers:gs,parties:ps,results:st.results||{},gmap:{},pmap:{}};
+  ps.forEach(function(x){S.pmap[x.id]=x});
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader}).join(','),S.guessers.map(function(x){return x.id}).join(',')].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(',')].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -122,7 +125,7 @@ function patch(){
   S.parties.forEach(function(p){
     setVal('pn-'+p.id,p.name);setVal('pv-'+p.id,p.prev);
     S.guessers.forEach(function(gu){setVal('c-'+p.id+'-'+gu.id,g(p.id,gu.id));});
-    setVal('r-'+p.id,isNum(S.results[p.id])?S.results[p.id]:null);
+    setVal('r-'+p.id,isNum(res(p.id))?res(p.id):null);
   });
   refresh();setStatus();
 }
@@ -168,18 +171,19 @@ function render(){
   S.parties.forEach(function(p){
     var pin=el('input',{id:'pn-'+p.id,value:p.name,'aria-label':'שם מפלגה',oninput:function(){edit('pf|'+p.id+'|name',function(){return OP.field('parties',p.id,'name')},pin.value);refresh();}});
     var px=el('button',{class:'x',text:'✕',title:'מחיקת מפלגה',onclick:function(){armDelete(px,function(){removeRow('parties',p.id);});}});
-    var tr=el('tr',null,[el('td',{class:'party'},[el('div',{class:'cellwrap'},[el('div',{class:'pstack'},[pin,p.leader?el('small',{class:'leader',text:p.leader}):null]),px])])]);
+    var dis=p.running?null:'';
+    var tr=el('tr',{class:p.running?null:'out'},[el('td',{class:'party'},[el('div',{class:'cellwrap'},[el('div',{class:'pstack'},[pin,p.leader?el('small',{class:'leader',text:p.leader}):null,p.running?null:el('small',{class:'leader notrun',text:'לא מתמודדת'})]),px])])]);
     var pvi=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'pv-'+p.id,'aria-label':'מנדטים ב־2022 '+p.name,placeholder:'–',value:p.prev==null?'':p.prev,oninput:function(){edit('pf|'+p.id+'|prev',function(){return OP.field('parties',p.id,'prev_2022')},num(pvi.value));refresh();}});
     tr.appendChild(el('td',{class:'prev'},[pvi,p.prevNote?el('small',{text:p.prevNote}):null]));
     S.guessers.forEach(function(gu){
       var v=g(p.id,gu.id);
-      var i=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'c-'+p.id+'-'+gu.id,'aria-label':gu.name+' — '+p.name,value:v==null?'':v,oninput:function(){
+      var i=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'c-'+p.id+'-'+gu.id,'aria-label':gu.name+' — '+p.name,value:v==null?'':v,disabled:dis,placeholder:p.running?null:'–',oninput:function(){
         edit('g|'+gu.id+'|'+p.id,function(){return OP.guess(gu.id,p.id)},num(i.value));refresh();}});
       tr.appendChild(el('td',{'data-p':p.id,'data-g':gu.id,class:hideCls(gu.id)},[i]));
     });
     tr.appendChild(el('td',{class:'avg',id:'avg-'+p.id}));
-    var r=S.results[p.id];
-    var ri=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'r-'+p.id,'aria-label':'תוצאה '+p.name,value:isNum(r)?r:'',oninput:function(){edit('r|'+p.id,function(){return OP.result(p.id)},num(ri.value));refresh();}});
+    var r=res(p.id);
+    var ri=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'r-'+p.id,'aria-label':'תוצאה '+p.name,value:isNum(r)?r:'',disabled:dis,placeholder:p.running?null:'–',oninput:function(){edit('r|'+p.id,function(){return OP.result(p.id)},num(ri.value));refresh();}});
     tr.appendChild(el('td',{class:'res','data-r':p.id},[ri]));
     tb.appendChild(tr);
   });
@@ -211,9 +215,9 @@ function warnCell(td,v){
   var inp=td.querySelector('input');if(inp){if(w)inp.title='מתחת לאחוז החסימה: מפלגה שעוברת מקבלת לפחות '+THRESH+' מנדטים';else inp.removeAttribute('title');}
 }
 function scores(){
-  var pids=S.parties.map(function(p){return p.id}).filter(function(id){return isNum(S.results[id])});
+  var pids=S.parties.map(function(p){return p.id}).filter(function(id){return isNum(res(id))});
   return {n:pids.length,list:S.guessers.map(function(gu){
-    var err=0,exact=0;pids.forEach(function(pid){var v=g(pid,gu.id)||0,r=S.results[pid];err+=Math.abs(v-r);if(g(pid,gu.id)===r)exact++;});
+    var err=0,exact=0;pids.forEach(function(pid){var v=g(pid,gu.id)||0,r=res(pid);err+=Math.abs(v-r);if(g(pid,gu.id)===r)exact++;});
     return {gu:gu,err:err,exact:exact};
   }).sort(function(a,b){return a.err-b.err||b.exact-a.exact})};
 }
@@ -224,17 +228,17 @@ function refresh(){
     var a=document.getElementById('avg-'+p.id);if(a)a.textContent=vals.length?(vals.reduce(function(s,v){return s+v},0)/vals.length).toFixed(1):'–';
     S.guessers.forEach(function(gu){
       var td=root.querySelector('td[data-p="'+p.id+'"][data-g="'+gu.id+'"]');var v=g(p.id,gu.id);
-      if(td){td.classList.toggle('hit',isNum(S.results[p.id])&&v===S.results[p.id]);warnCell(td,v);}
+      if(td){td.classList.toggle('hit',isNum(res(p.id))&&v===res(p.id));warnCell(td,v);}
       if(below(v))warns++;
     });
-    warnCell(root.querySelector('td[data-r="'+p.id+'"]'),S.results[p.id]);
+    warnCell(root.querySelector('td[data-r="'+p.id+'"]'),res(p.id));
   });
   S.guessers.forEach(function(gu){
     var t=0;S.parties.forEach(function(p){t+=g(p.id,gu.id)||0});
     var c=document.getElementById('tot-'+gu.id);if(c){c.textContent=t+'/120';c.className=(t>120?'over ':(t===120?'exact ':''))+hideCls(gu.id);}
   });
   var pt=0;S.parties.forEach(function(p){pt+=p.prev||0});var tp=document.getElementById('tot-prev');if(tp)tp.textContent=pt?pt+'/120':'';
-  var rt=0;S.parties.forEach(function(p){rt+=isNum(S.results[p.id])?S.results[p.id]:0});
+  var rt=0;S.parties.forEach(function(p){rt+=isNum(res(p.id))?res(p.id):0});
   var tr=document.getElementById('tot-res');if(tr)tr.textContent=rt?rt+'/120':'';
   renderBoard(warns);
 }
@@ -245,7 +249,7 @@ function renderBoard(warns){
   if(!sc.n){
     b.appendChild(el('p',{text:'עוד אין תוצאות. כשהספירה מתחילה, הזינו מנדטים בעמודה הכחולה. הניקוד הוא סך הפער מהתוצאה בכל המפלגות, כך שמי שקרוב ל־0 מוביל.'}));
     var ol=el('ol');
-    S.parties.map(function(p){var vals=S.guessers.map(function(gu){return g(p.id,gu.id)}).filter(isNum);return {p:p,a:vals.length?vals.reduce(function(s,v){return s+v},0)/vals.length:0}}).sort(function(x,y){return y.a-x.a}).slice(0,5).forEach(function(o,i){
+    S.parties.filter(function(p){return p.running}).map(function(p){var vals=S.guessers.map(function(gu){return g(p.id,gu.id)}).filter(isNum);return {p:p,a:vals.length?vals.reduce(function(s,v){return s+v},0)/vals.length:0}}).sort(function(x,y){return y.a-x.a}).slice(0,5).forEach(function(o,i){
       ol.appendChild(el('li',{class:'rank'},[el('span',{class:'pos',text:String(i+1)}),el('span',{class:'nm'},[document.createTextNode(o.p.name),el('small',{text:'תחזית המשפחה בממוצע'})]),el('span',{class:'sc',text:o.a.toFixed(1)})]));
     });
     b.appendChild(ol);
