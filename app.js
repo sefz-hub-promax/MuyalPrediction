@@ -2,7 +2,7 @@
 var LS='family-election-guess';
 var THRESH=4; // 3.25% ≈ 4 seats
 var DEBOUNCE=700;
-var S={guessers:[],parties:[],results:{},gmap:{}};
+var S={guessers:[],parties:[],results:{},polls:[],poll:{},gmap:{},pmap:{}};
 var raw={guessers:{},parties:{},results:{},polls:{}}; // server rows by id; results = vals of row 'main'; polls = exit polls, results rows 'poll*' (vals._name/_ord label them)
 var pollSel=null;try{pollSel=localStorage.getItem(LS+'-poll');}catch(e){}
 var gone={};   // ids deleted locally — ignore late realtime events for them
