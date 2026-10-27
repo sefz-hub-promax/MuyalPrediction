@@ -9,3 +9,4 @@ CLAUDE.md
 .playwright-mcp/
 node_modules/
 supabase/.temp/
+napkin-design.zip
