@@ -102,6 +102,12 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
 .cell.poll{font-family:var(--font-hand);font-size:18px;font-weight:600;color:#1F6B4A;transform:rotate(2deg)}
 .grid.sum .cell.poll{font-size:13px;transform:none}
 .lbl.poll-lbl{color:#1F6B4A}
+.cell.pollh{flex-direction:column;gap:0}
+.pollname{font-family:var(--font-print);font-size:10px;color:#1F6B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pollbar{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;margin-top:6px}
+.pollbar-lbl{font-family:var(--font-print);font-size:13px;font-weight:600;color:#1F6B4A;margin-inline-end:2px}
+.pchip{font-family:var(--font-hand);font-size:15px;font-weight:500;color:#1F6B4A;background:none;border:1.8px solid transparent;padding:4px 10px;min-height:36px;cursor:pointer;border-radius:50% 46% 52% 48%/60% 55% 45% 40%}
+.pchip[aria-pressed="true"]{border-color:#E8B400;background:rgba(255,200,40,.18)}
 .cell.avg{font-family:var(--font-print);font-size:14px;color:var(--print);font-variant-numeric:tabular-nums}
 /* result = red pen; empty shows a dashed slot */
 .cell.res input.num{color:var(--red)}

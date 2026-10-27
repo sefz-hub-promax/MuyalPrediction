@@ -3,7 +3,8 @@ var LS='family-election-guess';
 var THRESH=4; // 3.25% ≈ 4 seats
 var DEBOUNCE=700;
 var S={guessers:[],parties:[],results:{},gmap:{}};
-var raw={guessers:{},parties:{},results:{},poll:{}}; // server rows by id; results = vals of row 'main', poll = vals of row 'poll' (exit poll)
+var raw={guessers:{},parties:{},results:{},polls:{}}; // server rows by id; results = vals of row 'main'; polls = exit polls, results rows 'poll*' (vals._name/_ord label them)
+var pollSel=null;try{pollSel=localStorage.getItem(LS+'-poll');}catch(e){}
 var gone={};   // ids deleted locally — ignore late realtime events for them
 var ready={};  // id → promise<boolean> of a pending insert, so edits wait for the row to exist
 var mode='wait'; // wait | live | noconfig | loaderr
@@ -94,12 +95,14 @@ function rebuild(){
   for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||'',leader:d2.leader||'',running:d2.running!==false});}
   var cmp=function(a,b){return a.order-b.order||(a.id<b.id?-1:1)};
   gs.sort(cmp);ps.sort(cmp);
-  S={guessers:gs,parties:ps,results:st.results||{},poll:st.poll||{},gmap:{},pmap:{}};
+  var pl=Object.keys(st.polls||{}).map(function(id){var v=st.polls[id]||{};return {id:id,name:v._name||'מדגם',order:+v._ord||0,vals:v};}).sort(function(a,b){return a.order-b.order||(a.id<b.id?-1:1)});
+  var cur=pl.filter(function(x){return x.id===pollSel})[0]||pl[0];
+  S={guessers:gs,parties:ps,results:st.results||{},polls:pl,pollId:cur?cur.id:null,pollName:cur?cur.name:'',poll:cur?cur.vals:{},gmap:{},pmap:{}};
   ps.forEach(function(x){S.pmap[x.id]=x});
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible(),lockAt,locked(),JSON.stringify(S.poll)].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible(),lockAt,locked(),S.pollId,JSON.stringify(S.polls)].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -167,7 +170,8 @@ function render(){
   var head=el('header',null,[
     el('div',{class:'titles'},[
       el('h1',{text:'ניחוש בחירות'}),
-      el('p',{class:'sub',text:'כנסת ה־26 · כל אחד ממלא את הטור שלו'}),lockLine()
+      el('p',{class:'sub',text:'כנסת ה־26 · כל אחד ממלא את הטור שלו'}),lockLine(),
+      S.polls.length>1?el('div',{class:'pollbar'},[el('span',{class:'pollbar-lbl',text:'מדגם:'})].concat(S.polls.map(function(x){return el('button',{class:'pchip','aria-pressed':String(x.id===S.pollId),text:x.name,onclick:function(){pollSel=x.id;try{localStorage.setItem(LS+'-poll',x.id);}catch(e){}rebuild();render();}})}))):null
     ]),
     el('span',{id:'status',role:'status','aria-live':'polite',onclick:function(){if(failedCount())retryFailed();}})
   ]);
@@ -203,7 +207,7 @@ function render(){
     hr.appendChild(el('div',{class:'cell gh'},[inp]));
   });
   hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl',text:'ממוצע'})]));
-  if(hasPoll())hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl poll-lbl',text:'מדגם'})]));
+  if(hasPoll())hr.appendChild(el('div',{class:'cell pollh'},[el('span',{class:'lbl poll-lbl',text:'מדגם'}),el('small',{class:'pollname',text:S.pollName})]));
   if(resVisible())hr.appendChild(el('div',{class:'cell res'},[el('span',{class:'lbl red-lbl',text:'בפועל'})]));
   tbl.appendChild(hr);
 
@@ -325,7 +329,7 @@ function loadAll(){
     call(function(){return sb.from('results').select('*')})
   ]).then(function(r){
     raw.parties=byId(r[0].data);raw.guessers=byId(r[1].data);
-    var rr=byId(r[2].data);raw.results=(rr.main&&rr.main.vals)||{};raw.poll=(rr.poll&&rr.poll.vals)||{};
+    var rr=byId(r[2].data);raw.results=(rr.main&&rr.main.vals)||{};raw.polls={};for(var pk in rr)if(/^poll/.test(pk))raw.polls[pk]=rr[pk].vals||{};
     var first=mode!=='live';mode='live';
     if(first){rebuild();render();}else liveRender();
   },function(e){
@@ -338,10 +342,10 @@ function loadAll(){
 function onChange(table){return function(pl){
   if(pl.eventType==='DELETE'){
     var oid=pl.old&&pl.old.id;if(!oid)return;
-    if(table==='results'){if(oid==='poll')raw.poll={};else raw.results={};}else delete raw[table][oid];
+    if(table==='results'){if(/^poll/.test(oid))delete raw.polls[oid];else raw.results={};}else delete raw[table][oid];
   }else{
     var row=pl.new;if(!row||gone[row.id])return;
-    if(table==='results'){if(row.id==='main')raw.results=row.vals||{};else if(row.id==='poll')raw.poll=row.vals||{};}
+    if(table==='results'){if(row.id==='main')raw.results=row.vals||{};else if(/^poll/.test(row.id))raw.polls[row.id]=row.vals||{};}
     else raw[table][row.id]=Object.assign({},raw[table][row.id],row);
   }
   if(mode==='live')liveRender();
