@@ -76,6 +76,9 @@ h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:76px;line-
 .lbl{font-family:var(--font-print);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--print)}
 .pencil-lbl{color:var(--pencil)} .red-lbl{color:var(--red)}
 .pstack{display:grid;flex:1;min-width:0}
+.pstack>*{min-width:0}
+.pname-box{position:relative;min-width:0}
+.pname-box .ticker{display:none}
 input{font:inherit;color:inherit;background:transparent;border:1.5px solid transparent;border-radius:9px 12px 8px 11px;margin:0}
 input:hover,input:focus{border-color:rgba(43,63,160,.35)}
 input.pname{font-family:var(--font-hand);font-size:17px;font-weight:500;color:var(--ink);width:100%;padding:2px 4px;text-align:right}
@@ -147,6 +150,8 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
 .thanks{margin:0;text-align:center;font-size:12px;letter-spacing:.15em;color:#777}
 
 /* ---------- phone: the whole screen is the napkin ---------- */
+@keyframes tick{0%,18%{transform:translateX(0)}82%,100%{transform:translateX(var(--dist))}}
+@media (prefers-reduced-motion:reduce){.ticker.run .tk-in{animation:none}.ticker{text-overflow:ellipsis}}
 @media (max-width:640px){
   body{background:var(--napkin)}
   .wrap{padding:0}
@@ -172,6 +177,17 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
   .cell{min-height:46px;padding:3px 1px}
   .grid.head .cell{min-height:30px}
   input.pname{font-size:16px}
+  /* long names scroll back and forth instead of taking two lines */
+  .ticker{display:block;overflow:hidden;white-space:nowrap;min-width:0}
+  .ticker .tk-in{display:inline-block}
+  .ticker.run .tk-in{animation:tick var(--dur,6s) ease-in-out infinite alternate}
+  .pname-box .ticker{display:block;font-family:var(--font-hand);font-size:16px;font-weight:500;color:var(--ink);padding:3px 5px;line-height:1.35}
+  .pname-box input.pname{position:absolute;inset:0;opacity:0}
+  .pname-box input.pname:focus{opacity:1;background:var(--napkin)}
+  .grid.out .pname-box .ticker{text-decoration:line-through;text-decoration-thickness:2px;color:var(--pencil)}
+  .cell.party{padding-inline:2px}
+  .pnote.ticker{max-width:100%;width:100%;text-align:right}
+  .cell.prev{min-width:0}
   .leader{font-size:11px;padding:0 4px 2px}
   .pnote{font-size:9.5px;max-width:44px}
   .cell.prev input.num{width:42px;font-size:17px}
