@@ -104,7 +104,7 @@ function rebuild(){
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(',')].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible()].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -139,12 +139,15 @@ function armDelete(btn,fn){
   setTimeout(function(){btn.classList.remove('arm');btn.textContent='✕';},3000);
 }
 
+var showRes=false;
+function resVisible(){return showRes||S.parties.some(function(p){return isNum(res(p.id))});}
 function isPhone(){return window.matchMedia('(max-width:640px)').matches;}
 function showG(gid){return !(isPhone()&&view==='one')||gid===focusG;}
 function gridCols(){
   var one=isPhone()&&view==='one',n=S.guessers.filter(function(gu){return showG(gu.id)}).length;
-  if(one)return 'minmax(0,1fr) 44px 66px 42px 52px';
-  return (isPhone()?'120px 56px':'170px 76px')+' repeat('+n+',64px) 62px 76px';
+  var rc=resVisible();
+  if(one)return 'minmax(0,1fr) 44px 66px 42px'+(rc?' 52px':'');
+  return (isPhone()?'120px 56px':'170px 76px')+' repeat('+n+',64px) 62px'+(rc?' 76px':'');
 }
 
 function render(){
@@ -192,7 +195,7 @@ function render(){
     hr.appendChild(el('div',{class:'cell gh'},[x,inp]));
   });
   hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl',text:'ממוצע'})]));
-  hr.appendChild(el('div',{class:'cell res'},[el('span',{class:'lbl red-lbl',text:'בפועל'})]));
+  if(resVisible())hr.appendChild(el('div',{class:'cell res'},[el('span',{class:'lbl red-lbl',text:'בפועל'})]));
   tbl.appendChild(hr);
 
   S.parties.forEach(function(p,ri){
@@ -214,20 +217,21 @@ function render(){
     row.appendChild(el('div',{class:'cell avg',id:'avg-'+p.id}));
     var r=res(p.id);
     var rin=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'r-'+p.id,'aria-label':'תוצאה '+p.name,placeholder:p.running?' ':'–',value:isNum(r)?r:'',disabled:dis,oninput:function(){edit('r|'+p.id,function(){return OP.result(p.id)},num(rin.value));refresh();}});
-    row.appendChild(el('div',{class:'cell res','data-r':p.id},[el('span',{class:'mark'},[rin])]));
+    if(resVisible())row.appendChild(el('div',{class:'cell res','data-r':p.id},[el('span',{class:'mark'},[rin])]));
     tbl.appendChild(row);
   });
 
   var sr=el('div',{class:'grid sum'},[el('div',{class:'cell party'},[el('span',{class:'lbl',text:'סה״כ'})]),el('div',{class:'cell prev',id:'tot-prev'})]);
   S.guessers.forEach(function(gu){if(showG(gu.id))sr.appendChild(el('div',{class:'cell tot',id:'tot-'+gu.id}));});
-  sr.appendChild(el('div',{class:'cell'}));sr.appendChild(el('div',{class:'cell res',id:'tot-res'}));
+  sr.appendChild(el('div',{class:'cell'}));if(resVisible())sr.appendChild(el('div',{class:'cell res',id:'tot-res'}));
   tbl.appendChild(sr);
   paper.appendChild(el('div',{class:'scroll'},[tbl]));
 
   paper.appendChild(el('div',{class:'addrow'},[
     el('button',{class:'pen-btn',text:'+ מפלגה',onclick:function(){var id=newId('p');addRow('parties',{id:id,name:'מפלגה חדשה',ord:Date.now(),prev_2022:null,prev_note:''});render();var f=document.getElementById('pn-'+id);if(f){f.focus();f.select();}}}),
     el('button',{class:'pen-btn',text:'+ מנחש',onclick:function(){var id=newId('g');addRow('guessers',{id:id,name:'מנחש חדש',ord:Date.now(),vals:{}});focusG=id;remember();render();var f=document.getElementById('gn-'+id);if(f){f.focus();f.select();}}}),
-    el('span',{class:'legend',text:'עיפרון = 2022 · עט אדום = התוצאה בפועל · ✕ פעמיים = מחיקה'})
+    resVisible()?null:el('button',{class:'pen-btn red-btn',text:'+ תוצאות אמת',onclick:function(){showRes=true;render();var f=root.querySelector('.cell.res input:not(:disabled)');if(f)f.focus();}}),
+    el('span',{class:'legend',text:resVisible()?'עיפרון = 2022 · עט אדום = התוצאה בפועל · ✕ פעמיים = מחיקה':'עיפרון = 2022 · עמודת התוצאות תופיע כשיתחילו להזין תוצאות · ✕ פעמיים = מחיקה'})
   ]));
   refresh();setStatus();
 }
