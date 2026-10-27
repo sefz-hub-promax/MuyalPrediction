@@ -96,6 +96,14 @@ function rebuild(){
   var cmp=function(a,b){return a.order-b.order||(a.id<b.id?-1:1)};
   gs.sort(cmp);ps.sort(cmp);
   var pl=Object.keys(st.polls||{}).map(function(id){var v=st.polls[id]||{};return {id:id,name:v._name||'מדגם',order:+v._ord||0,vals:v};}).sort(function(a,b){return a.order-b.order||(a.id<b.id?-1:1)});
+  if(pl.length>1){
+    var av={};
+    ps.forEach(function(p){
+      if(!pl.some(function(x){return isNum(x.vals[p.id])}))return;
+      av[p.id]=Math.round(pl.reduce(function(t,x){return t+(isNum(x.vals[p.id])?x.vals[p.id]:0)},0)/pl.length*10)/10;
+    });
+    pl.push({id:'pollavg',name:'ממוצע מדגמים',order:1e9,vals:av});
+  }
   var cur=pl.filter(function(x){return x.id===pollSel})[0]||pl[0];
   S={guessers:gs,parties:ps,results:st.results||{},polls:pl,pollId:cur?cur.id:null,pollName:cur?cur.name:'',poll:cur?cur.vals:{},gmap:{},pmap:{}};
   ps.forEach(function(x){S.pmap[x.id]=x});
@@ -238,7 +246,7 @@ function render(){
   var sr=el('div',{class:'grid sum'},[el('div',{class:'cell party'},[el('span',{class:'lbl',text:'סה״כ'})]),el('div',{class:'cell prev',id:'tot-prev'})]);
   S.guessers.forEach(function(gu){if(showG(gu.id))sr.appendChild(el('div',{class:'cell tot',id:'tot-'+gu.id}));});
   sr.appendChild(el('div',{class:'cell'}));
-  if(hasPoll())sr.appendChild(el('div',{class:'cell poll'},[el('span',{text:S.parties.reduce(function(t,p){return t+(isNum(S.poll[p.id])?S.poll[p.id]:0)},0)+'/120'})]));
+  if(hasPoll())sr.appendChild(el('div',{class:'cell poll'},[el('span',{text:S.parties.reduce(function(t,p){return t+(isNum(S.poll[p.id])?S.poll[p.id]:0)},0).toFixed(0)+'/120'})]));
   if(resVisible())sr.appendChild(el('div',{class:'cell res',id:'tot-res'}));
   tbl.appendChild(sr);
   paper.appendChild(el('div',{class:'scroll'},[tbl]));
@@ -270,7 +278,7 @@ function refresh(){
     var a=document.getElementById('avg-'+p.id);if(a)a.textContent=vals.length?(vals.reduce(function(s,v){return s+v},0)/vals.length).toFixed(1):'–';
     S.guessers.forEach(function(gu){
       var c=root.querySelector('.cell[data-p="'+p.id+'"][data-g="'+gu.id+'"]');var v=g(p.id,gu.id);
-      if(c){c.classList.toggle('hit',isNum(res(p.id))&&v===res(p.id));c.classList.toggle('phit',!out(p.id)&&isNum(S.poll[p.id])&&v===S.poll[p.id]);warnCell(c,v);}
+      if(c){c.classList.toggle('hit',isNum(res(p.id))&&v===res(p.id));c.classList.toggle('phit',!out(p.id)&&isNum(S.poll[p.id])&&v===Math.round(S.poll[p.id]));warnCell(c,v);}
       if(below(v))warns++;
     });
     var rc=root.querySelector('.cell[data-r="'+p.id+'"]');warnCell(rc,res(p.id));
