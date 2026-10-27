@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ניחוש בחירות משפחתי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style id="css">
+/* Layout: a ballot-paper sheet — big table of guesses, leaderboard beside it; napkin-pen blue ink as the accent */
+:root{
+  --paper:#f7f8fb; --sheet:#ffffff; --ink:#18203a; --muted:#646c86; --line:#d9deea;
+  --pen:#2340b8; --pen-soft:#e6ebfb; --gold:#b57a00; --bad:#b3261e; --good:#1e7a46; --prev:#8a5a00; --prev-soft:#fbf1dc; --warn:#c2410c; --warn-soft:#ffedd5;
+  --display:"Suez One","Frank Ruhl Libre",Georgia,serif;
+  --body:"Assistant","Segoe UI",Arial,sans-serif;
+  --num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1322; --sheet:#171c2f; --ink:#e7eaf5; --muted:#99a1bd; --line:#2b3250;
+  --pen:#8ea4ff; --pen-soft:#222c55; --gold:#e8b44a; --bad:#ff8a80; --good:#6fd39b; --prev:#f0c070; --prev-soft:#2c2414; --warn:#fb923c; --warn-soft:#3a2312; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1322; --sheet:#171c2f; --ink:#e7eaf5; --muted:#99a1bd; --line:#2b3250;
+  --pen:#8ea4ff; --pen-soft:#222c55; --gold:#e8b44a; --bad:#ff8a80; --good:#6fd39b; --prev:#f0c070; --prev-soft:#2c2414; --warn:#fb923c; --warn-soft:#3a2312; color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;direction:rtl}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px;display:grid;gap:24px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,42px);margin:0;line-height:1.1;text-wrap:balance}
+h1 span{color:var(--pen)}
+.sub{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.savebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#status{font-size:14px;color:var(--muted)}
+#status.dirty{color:var(--gold);font-weight:600}
+#status.err{color:var(--bad)}
+button{font:inherit;cursor:pointer;border-radius:8px}
+.btn{background:var(--pen);color:var(--sheet);border:0;padding:9px 18px;font-weight:700}
+.btn:disabled{opacity:.45;cursor:default}
+.ghost{background:transparent;border:1.5px dashed var(--pen);color:var(--pen);padding:7px 12px;font-weight:600;white-space:nowrap}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pen);outline-offset:2px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:12px;min-width:0}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:center}
+thead th{background:var(--sheet);vertical-align:bottom;font-weight:600}
+th.party,td.party{text-align:right;position:sticky;right:0;background:var(--sheet);z-index:1;min-width:130px;border-left:1px solid var(--line)}
+.lbl{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:700}
+input{font:inherit;color:inherit;background:transparent;border:1px solid transparent;border-radius:6px;padding:5px 4px}
+input:hover{border-color:var(--line)}
+input.name{width:100%;min-width:72px;font-weight:700;text-align:center}
+td.party input{text-align:right;width:100%;font-weight:700}
+input.num{width:52px;text-align:center;font-family:var(--num);font-size:16px}
+input.num::-webkit-inner-spin-button{opacity:.3}
+.res{background:var(--pen-soft)}
+.res input.num{color:var(--pen);font-weight:700}
+.prev{background:var(--prev-soft);color:var(--prev)}
+.prev input.num{color:var(--prev);font-weight:700}
+.prev .lbl{color:var(--prev)}
+.prev small{display:block;font-size:11px;line-height:1.2;max-width:92px;margin:0 auto;opacity:.85}
+.avg{color:var(--muted);font-family:var(--num);font-size:14px}
+.cellwrap{display:flex;align-items:center;gap:2px;justify-content:center}
+.x{background:none;border:0;color:var(--muted);font-size:13px;padding:2px 5px;line-height:1}
+.x:hover{color:var(--bad)}
+.x.arm{color:var(--sheet);background:var(--bad);font-weight:700}
+tfoot td{font-family:var(--num);font-size:14px;border-bottom:0;padding-block:10px}
+tfoot td.party{font-family:var(--body);font-size:12px}
+.over{color:var(--bad)} .exact{color:var(--good)}
+.hit{box-shadow:inset 0 0 0 2px var(--good)}
+.addrow{padding:12px;display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line)}
+aside.sheet{padding:18px;display:grid;gap:12px}
+aside h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+aside p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+ol{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li.rank{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line)}
+li.rank:first-child{border-color:var(--gold)}
+li.rank .pos{font-family:var(--display);font-size:20px;color:var(--muted);text-align:center}
+li.rank:first-child .pos{color:var(--gold)}
+li.rank .nm{font-weight:700;min-width:0;overflow-wrap:anywhere}
+li.rank .sc{font-family:var(--num);font-size:14px;text-align:left}
+li.rank small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.viewbar{display:none}
+@media (max-width:640px){
+  .wrap{padding-block:16px 32px;gap:16px}
+  h1{font-size:28px}
+  .sub{font-size:14px}
+  header{align-items:start}
+  .viewbar{display:grid;gap:10px;padding:12px 12px 0}
+  .seg{display:flex;border:1.5px solid var(--pen);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;border:0;border-radius:0;background:transparent;color:var(--pen);padding:9px 6px;font-weight:700;font-size:15px}
+  .seg button[aria-pressed="true"]{background:var(--pen);color:var(--sheet)}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .chips button{flex:none;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:7px 12px;border-radius:999px;font-weight:600;font-size:15px}
+  .chips button[aria-pressed="true"]{border-color:var(--pen);background:var(--pen-soft);color:var(--pen)}
+  th,td{padding:4px 3px}
+  th.party,td.party{min-width:108px;max-width:130px}
+  td.party input{font-size:15px}
+  input.num{width:46px;height:40px;font-size:17px;padding:0;-moz-appearance:textfield;appearance:textfield}
+  input.num::-webkit-inner-spin-button,input.num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  input.name{min-width:60px;font-size:15px}
+  .x{padding:6px}
+  .prev small{max-width:70px;font-size:10px}
+  .addrow{padding:10px}
+  .ghost{flex:1;padding:10px 12px}
+  .addrow .note{flex-basis:100%}
+  #root[data-view="one"] .one-hide{display:none}
+  #root[data-view="one"] input.num{width:54px}
+  #root[data-view="one"] th.party,#root[data-view="one"] td.party{min-width:96px}
+  #root[data-view="one"] .prev small{max-width:60px}
+}
+.warn input.num{color:var(--warn)!important;background:var(--warn-soft);font-weight:700}
+.warnnote{color:var(--warn)!important;font-weight:600}
+.empty{padding:28px 18px;color:var(--muted)}
+.empty p{margin:0}
+input:disabled{color:inherit;opacity:1;-webkit-text-fill-color:currentColor}
+.note{font-size:13px;color:var(--muted)}
+html,body{margin:0}
+*,*::before,*::after{box-sizing:border-box}
+#status.retry{cursor:pointer;text-decoration:underline}
+#status.live{color:var(--muted)}
+.empty .btn{margin-top:14px}
+@media (prefers-reduced-motion:no-preference){li.rank{transition:background .2s}}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

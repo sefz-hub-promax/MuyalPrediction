@@ -1,0 +1,11 @@
+# private: family names, napkin photos, working notes — never publish
+election-guess.zip
+reference/
+seed-data.json
+supabase/seed.sql
+CLAUDE.md
+.claude/
+
+.playwright-mcp/
+node_modules/
+supabase/.temp/
