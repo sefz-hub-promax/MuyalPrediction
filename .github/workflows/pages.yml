@@ -27,6 +27,9 @@ jobs:
         run: |
           mkdir _site
           cp index.html app.js config.js _site/
+          # cache-bust: browsers fetch fresh scripts after every deploy
+          sed -i "s#src=\"\(app\|config\)\.js\"#src=\"\1.js?v=${GITHUB_SHA::8}\"#g" _site/index.html
+          grep -q "app.js?v=" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
