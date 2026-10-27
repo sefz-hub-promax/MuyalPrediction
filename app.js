@@ -3,7 +3,7 @@ var LS='family-election-guess';
 var THRESH=4; // 3.25% ≈ 4 seats
 var DEBOUNCE=700;
 var S={guessers:[],parties:[],results:{},gmap:{}};
-var raw={guessers:{},parties:{},results:{}}; // server rows by id; results = vals of row 'main'
+var raw={guessers:{},parties:{},results:{},poll:{}}; // server rows by id; results = vals of row 'main', poll = vals of row 'poll' (exit poll)
 var gone={};   // ids deleted locally — ignore late realtime events for them
 var ready={};  // id → promise<boolean> of a pending insert, so edits wait for the row to exist
 var mode='wait'; // wait | live | noconfig | loaderr
@@ -94,12 +94,12 @@ function rebuild(){
   for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||'',leader:d2.leader||'',running:d2.running!==false});}
   var cmp=function(a,b){return a.order-b.order||(a.id<b.id?-1:1)};
   gs.sort(cmp);ps.sort(cmp);
-  S={guessers:gs,parties:ps,results:st.results||{},gmap:{},pmap:{}};
+  S={guessers:gs,parties:ps,results:st.results||{},poll:st.poll||{},gmap:{},pmap:{}};
   ps.forEach(function(x){S.pmap[x.id]=x});
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible(),lockAt,locked()].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader+':'+p.running}).join(','),S.guessers.map(function(x){return x.id}).join(','),resVisible(),lockAt,locked(),JSON.stringify(S.poll)].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -147,13 +147,15 @@ function fitTickers(){
     t.classList.toggle('run',d>2);t.style.setProperty('--dist',d+'px');t.style.setProperty('--dur',(3+d/22).toFixed(1)+'s');
   });
 }
+function hasPoll(){return S.parties.some(function(p){return isNum(S.poll[p.id])});}
 function isPhone(){return window.matchMedia('(max-width:640px)').matches;}
 function showG(gid){return !(isPhone()&&view==='one')||gid===focusG;}
 function gridCols(){
   var one=isPhone()&&view==='one',n=S.guessers.filter(function(gu){return showG(gu.id)}).length;
   var rc=resVisible();
-  if(one)return 'minmax(0,1fr) 44px 66px 42px'+(rc?' 52px':'');
-  return (isPhone()?'100px 52px':'170px 76px')+' repeat('+n+',64px) 62px'+(rc?' 76px':'');
+  var pc=hasPoll();
+  if(one)return 'minmax(0,1fr) 40px 62px 40px'+(pc?' 42px':'')+(rc?' 50px':'');
+  return (isPhone()?'100px 52px':'170px 76px')+' repeat('+n+',64px) 62px'+(pc?(isPhone()?' 50px':' 62px'):'')+(rc?' 76px':'');
 }
 
 function render(){
@@ -201,6 +203,7 @@ function render(){
     hr.appendChild(el('div',{class:'cell gh'},[inp]));
   });
   hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl',text:'ממוצע'})]));
+  if(hasPoll())hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl poll-lbl',text:'מדגם'})]));
   if(resVisible())hr.appendChild(el('div',{class:'cell res'},[el('span',{class:'lbl red-lbl',text:'בפועל'})]));
   tbl.appendChild(hr);
 
@@ -221,6 +224,7 @@ function render(){
       row.appendChild(el('div',{class:'cell gc','data-p':p.id,'data-g':gu.id},[el('span',{class:'mark'},[i])]));
     });
     row.appendChild(el('div',{class:'cell avg',id:'avg-'+p.id}));
+    if(hasPoll())row.appendChild(el('div',{class:'cell poll'},[el('span',{text:isNum(S.poll[p.id])?String(S.poll[p.id]):'–'})]));
     var r=res(p.id);
     var rin=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'r-'+p.id,'aria-label':'תוצאה '+p.name,placeholder:p.running?' ':'–',value:isNum(r)?r:'',disabled:dis,oninput:function(){edit('r|'+p.id,function(){return OP.result(p.id)},num(rin.value));refresh();}});
     if(resVisible())row.appendChild(el('div',{class:'cell res','data-r':p.id},[el('span',{class:'mark'},[rin])]));
@@ -229,7 +233,9 @@ function render(){
 
   var sr=el('div',{class:'grid sum'},[el('div',{class:'cell party'},[el('span',{class:'lbl',text:'סה״כ'})]),el('div',{class:'cell prev',id:'tot-prev'})]);
   S.guessers.forEach(function(gu){if(showG(gu.id))sr.appendChild(el('div',{class:'cell tot',id:'tot-'+gu.id}));});
-  sr.appendChild(el('div',{class:'cell'}));if(resVisible())sr.appendChild(el('div',{class:'cell res',id:'tot-res'}));
+  sr.appendChild(el('div',{class:'cell'}));
+  if(hasPoll())sr.appendChild(el('div',{class:'cell poll'},[el('span',{text:S.parties.reduce(function(t,p){return t+(isNum(S.poll[p.id])?S.poll[p.id]:0)},0)+'/120'})]));
+  if(resVisible())sr.appendChild(el('div',{class:'cell res',id:'tot-res'}));
   tbl.appendChild(sr);
   paper.appendChild(el('div',{class:'scroll'},[tbl]));
 
@@ -316,10 +322,10 @@ function loadAll(){
   loading=Promise.all([
     call(function(){return sb.from('parties').select('*')}),
     call(function(){return sb.from('guessers').select('*')}),
-    call(function(){return sb.from('results').select('*').eq('id','main').maybeSingle()})
+    call(function(){return sb.from('results').select('*')})
   ]).then(function(r){
     raw.parties=byId(r[0].data);raw.guessers=byId(r[1].data);
-    raw.results=(r[2].data&&r[2].data.vals)||{};
+    var rr=byId(r[2].data);raw.results=(rr.main&&rr.main.vals)||{};raw.poll=(rr.poll&&rr.poll.vals)||{};
     var first=mode!=='live';mode='live';
     if(first){rebuild();render();}else liveRender();
   },function(e){
@@ -332,10 +338,10 @@ function loadAll(){
 function onChange(table){return function(pl){
   if(pl.eventType==='DELETE'){
     var oid=pl.old&&pl.old.id;if(!oid)return;
-    if(table==='results')raw.results={};else delete raw[table][oid];
+    if(table==='results'){if(oid==='poll')raw.poll={};else raw.results={};}else delete raw[table][oid];
   }else{
     var row=pl.new;if(!row||gone[row.id])return;
-    if(table==='results'){if(row.id==='main')raw.results=row.vals||{};}
+    if(table==='results'){if(row.id==='main')raw.results=row.vals||{};else if(row.id==='poll')raw.poll=row.vals||{};}
     else raw[table][row.id]=Object.assign({},raw[table][row.id],row);
   }
   if(mode==='live')liveRender();

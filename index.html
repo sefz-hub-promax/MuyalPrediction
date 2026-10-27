@@ -99,6 +99,9 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
 .cell.prev input.num::placeholder{color:var(--pencil);opacity:.5}
 .pnote{font-family:var(--font-print);font-size:10.5px;line-height:1.15;color:var(--pencil);text-align:center;max-width:80px;margin-top:1px}
 /* average = printed */
+.cell.poll{font-family:var(--font-hand);font-size:18px;font-weight:600;color:#1F6B4A;transform:rotate(2deg)}
+.grid.sum .cell.poll{font-size:13px;transform:none}
+.lbl.poll-lbl{color:#1F6B4A}
 .cell.avg{font-family:var(--font-print);font-size:14px;color:var(--print);font-variant-numeric:tabular-nums}
 /* result = red pen; empty shows a dashed slot */
 .cell.res input.num{color:var(--red)}
@@ -197,6 +200,8 @@ input:disabled{-webkit-text-fill-color:currentColor;opacity:1}
   .cell.gc input.num,.cell.res input.num{border-color:rgba(43,63,160,.35);background-color:rgba(255,255,255,.55)}
   .cell.res input.num{width:46px}
   .cell.avg{font-size:12.5px}
+  .cell.poll{font-size:16px}
+  .grid.sum .cell.poll{font-size:11px}
   .x{padding:6px}
   .addrow{gap:22px}
   .pen-btn{font-size:16px}
