@@ -10,3 +10,4 @@ CLAUDE.md
 node_modules/
 supabase/.temp/
 napkin-design.zip
+*.webp
