@@ -94,14 +94,14 @@ function rebuild(){
   for(var k in Q){var q=Q[k];if(q.has)q.op.apply(st,q.val);else if(q.busy)q.op.apply(st,q.sent);}
   var gs=[],ps=[];
   for(var id in st.guessers){if(gone[id])continue;var d=st.guessers[id];gs.push({id:id,name:d.name||'',order:+d.ord||0,values:d.vals||{}});}
-  for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||''});}
+  for(var id2 in st.parties){if(gone[id2])continue;var d2=st.parties[id2];ps.push({id:id2,name:d2.name||'',order:+d2.ord||0,prev:isNum(d2.prev_2022)?d2.prev_2022:null,prevNote:d2.prev_note||'',leader:d2.leader||''});}
   var cmp=function(a,b){return a.order-b.order||(a.id<b.id?-1:1)};
   gs.sort(cmp);ps.sort(cmp);
   S={guessers:gs,parties:ps,results:st.results||{},gmap:{}};
   gs.forEach(function(x){S.gmap[x.id]=x});
 }
 function fixFocus(){if(!S.guessers.some(function(q){return q.id===focusG}))focusG=S.guessers[0]?S.guessers[0].id:null;}
-function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote}).join(','),S.guessers.map(function(x){return x.id}).join(',')].join('|');}
+function sig(){fixFocus();return [mode,view,focusG,S.parties.map(function(p){return p.id+':'+p.prevNote+':'+p.leader}).join(','),S.guessers.map(function(x){return x.id}).join(',')].join('|');}
 
 /* remote changes: patch values in place when the table shape is unchanged (keeps focus + mobile keyboard),
    otherwise re-render and restore focus/caret in the field being typed in */
@@ -168,7 +168,7 @@ function render(){
   S.parties.forEach(function(p){
     var pin=el('input',{id:'pn-'+p.id,value:p.name,'aria-label':'שם מפלגה',oninput:function(){edit('pf|'+p.id+'|name',function(){return OP.field('parties',p.id,'name')},pin.value);refresh();}});
     var px=el('button',{class:'x',text:'✕',title:'מחיקת מפלגה',onclick:function(){armDelete(px,function(){removeRow('parties',p.id);});}});
-    var tr=el('tr',null,[el('td',{class:'party'},[el('div',{class:'cellwrap'},[pin,px])])]);
+    var tr=el('tr',null,[el('td',{class:'party'},[el('div',{class:'cellwrap'},[el('div',{class:'pstack'},[pin,p.leader?el('small',{class:'leader',text:p.leader}):null]),px])])]);
     var pvi=el('input',{class:'num',type:'number',min:'0',max:'120',inputmode:'numeric',id:'pv-'+p.id,'aria-label':'מנדטים ב־2022 '+p.name,placeholder:'–',value:p.prev==null?'':p.prev,oninput:function(){edit('pf|'+p.id+'|prev',function(){return OP.field('parties',p.id,'prev_2022')},num(pvi.value));refresh();}});
     tr.appendChild(el('td',{class:'prev'},[pvi,p.prevNote?el('small',{text:p.prevNote}):null]));
     S.guessers.forEach(function(gu){
