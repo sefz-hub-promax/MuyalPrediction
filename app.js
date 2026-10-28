@@ -215,7 +215,7 @@ function render(){
     hr.appendChild(el('div',{class:'cell gh'},[inp]));
   });
   hr.appendChild(el('div',{class:'cell'},[el('span',{class:'lbl',text:'ממוצע'})]));
-  if(hasPoll())hr.appendChild(el('div',{class:'cell pollh'},[el('span',{class:'lbl poll-lbl',text:'מדגם'}),el('small',{class:'pollname',text:S.pollName})]));
+  if(hasPoll())hr.appendChild(el('div',{class:'cell pollh'},S.polls.length>1?[el('span',{class:'lbl poll-lbl',text:'מדגם'}),el('small',{class:'pollname',text:S.pollName})]:[el('span',{class:'lbl poll-lbl',text:S.pollName})]));
   if(resVisible())hr.appendChild(el('div',{class:'cell res'},[el('span',{class:'lbl red-lbl',text:'בפועל'})]));
   tbl.appendChild(hr);
 
